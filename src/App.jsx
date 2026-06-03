@@ -5,12 +5,17 @@ export default function App() {
   const [navVisible, setNavVisible] = useState(false)
   const [introComplete, setIntroComplete] = useState(false)
 
+  const zoneStyle = {
+    minHeight: '100vh',
+    width: '100%',
+  }
+
   return (
     <AppShell navVisible={navVisible}>
       <div
         id="event-horizon"
-        className="min-h-screen bg-black flex items-center 
-        justify-center"
+        className="flex items-center justify-center"
+        style={{ ...zoneStyle, background: '#000000' }}
       >
         <div className="text-center">
           <p
@@ -25,30 +30,29 @@ export default function App() {
           >
             Where Attention Lives
           </h1>
-         {!introComplete && (
-  <button
-    className="mt-12 text-xs tracking-widest uppercase 
-    opacity-60 hover:opacity-100 transition-all 
-    duration-300 text-white border border-white 
-    border-opacity-20 px-8 py-3"
-    onClick={() => {
-      setNavVisible(true)
-      setIntroComplete(true)
-      const el = document.getElementById('the-pull')
-      if (el) el.scrollIntoView({ behavior: 'smooth' })
-    }}
-  >
-    Enter Experience ↓
-  </button>
-)}
+          {!introComplete && (
+            <button
+              className="mt-12 text-xs tracking-widest uppercase 
+              opacity-60 hover:opacity-100 transition-all 
+              duration-300 text-white border border-white 
+              border-opacity-20 px-8 py-3"
+              onClick={() => {
+                setNavVisible(true)
+                setIntroComplete(true)
+                const el = document.getElementById('the-pull')
+                if (el) el.scrollIntoView({ behavior: 'smooth' })
+              }}
+            >
+              Enter Experience ↓
+            </button>
+          )}
         </div>
       </div>
 
       <div
         id="the-pull"
-        className="min-h-screen flex items-center 
-        justify-center"
-        style={{ background: '#0A0A0A' }}
+        className="flex items-center justify-center"
+        style={{ ...zoneStyle, background: '#0A0A0A' }}
       >
         <h2
           className="text-4xl font-light text-white"
@@ -60,9 +64,8 @@ export default function App() {
 
       <div
         id="the-ecosystem"
-        className="min-h-screen flex items-center 
-        justify-center"
-        style={{ background: '#0D1117' }}
+        className="flex items-center justify-center"
+        style={{ ...zoneStyle, background: '#0D1117' }}
       >
         <h2
           className="text-4xl font-light text-white"
@@ -74,8 +77,8 @@ export default function App() {
 
       <div
         id="the-energy"
-        className="min-h-screen flex items-center 
-        justify-center bg-black"
+        className="flex items-center justify-center"
+        style={{ ...zoneStyle, background: '#000000' }}
       >
         <h2
           className="text-4xl font-light text-white"
@@ -87,9 +90,8 @@ export default function App() {
 
       <div
         id="the-platform"
-        className="min-h-screen flex items-center 
-        justify-center"
-        style={{ background: '#0A0A0A' }}
+        className="flex items-center justify-center"
+        style={{ ...zoneStyle, background: '#0A0A0A' }}
       >
         <h2
           className="text-4xl font-light text-white"
@@ -101,9 +103,8 @@ export default function App() {
 
       <div
         id="the-record"
-        className="min-h-screen flex items-center 
-        justify-center"
-        style={{ background: '#0D1117' }}
+        className="flex items-center justify-center"
+        style={{ ...zoneStyle, background: '#0D1117' }}
       >
         <h2
           className="text-4xl font-light text-white"
@@ -115,8 +116,8 @@ export default function App() {
 
       <div
         id="the-decision"
-        className="min-h-screen flex items-center 
-        justify-center bg-black"
+        className="flex items-center justify-center"
+        style={{ ...zoneStyle, background: '#000000' }}
       >
         <h2
           className="text-4xl font-light text-white"

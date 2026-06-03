@@ -45,3 +45,22 @@ body {
 
 .font-display { font-family: var(--font-display); }
 .font-heading { font-family: var(--font-heading); }
+.business-link {
+  color: #ffffff;
+  opacity: 0.5;
+}
+
+.business-link:hover {
+  color: #C9A84C;
+  opacity: 1;
+}
+.story-link {
+  color: #ffffff;
+  opacity: 0.4;
+  transition: color 0.3s, opacity 0.3s;
+}
+
+.story-link:hover {
+  color: #C9A84C;
+  opacity: 1;
+}
