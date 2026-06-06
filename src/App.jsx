@@ -77,6 +77,8 @@ function useGlobals() {
     const links = [
       ["preconnect", "https://fonts.googleapis.com"],
       ["preconnect", "https://fonts.gstatic.com", true],
+      ["preconnect", "https://i.ytimg.com", true],
+      ["dns-prefetch", "https://i.ytimg.com"],
       ["stylesheet", "https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,200;0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,300;1,9..144,400;1,9..144,500&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@300;400;500&family=Caveat:wght@500&display=swap"]
     ]
     links.forEach(([rel, href, cross]) => {
@@ -101,6 +103,10 @@ function useGlobals() {
       a,button{color:inherit;cursor:none;font:inherit;text-decoration:none;border:none;background:none}
       img{display:block;max-width:100%}
 
+      /* Keyboard focus — hidden by default, shown on keyboard nav */
+      :focus{outline:none}
+      :focus-visible{outline:2px solid ${C.saffron};outline-offset:3px}
+
       .moa-paper{position:fixed;inset:0;z-index:0;pointer-events:none;
         background-color:${C.paper};
         background-image:
@@ -110,7 +116,7 @@ function useGlobals() {
 
       .moa-grain{position:fixed;inset:-150%;z-index:1;pointer-events:none;opacity:0.08;mix-blend-mode:multiply;
         background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.72' numOctaves='3'/%3E%3CfeColorMatrix values='0 0 0 0 0.3 0 0 0 0 0.2 0 0 0 0 0.08 0 0 0 0.55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-        animation:moaG 0.7s steps(3) infinite}
+        animation:moaG 3s steps(2) infinite}
       @keyframes moaG{0%{transform:translate(0,0)}50%{transform:translate(-1.5%,1%)}100%{transform:translate(1%,-1%)}}
 
       .moa-marquee{display:inline-block;white-space:nowrap;animation:moaM 55s linear infinite}
@@ -140,7 +146,7 @@ function useGlobals() {
       .moa-img:hover img{transform:scale(1.04)}
 
       .moa-cap{font-family:${F.mono};font-size:9.5px;font-weight:500;
-        letter-spacing:0.32em;text-transform:uppercase;color:${C.ink55}}
+        letter-spacing:0.32em;text-transform:uppercase;color:${C.ink70}}
       .moa-cap-warm{font-family:${F.mono};font-size:9.5px;font-weight:500;
         letter-spacing:0.32em;text-transform:uppercase;color:${C.saffron}}
 
@@ -163,6 +169,12 @@ function useGlobals() {
       @media (max-width:900px){
         .moa-cursor,.moa-cursor-ring{display:none}
         body{cursor:auto}
+      }
+
+      @media (prefers-reduced-motion: reduce){
+        .moa-grain{animation:none}
+        .moa-rise,.moa-fade,.moa-scale{transition:none}
+        .moa-marquee{animation:none}
       }
     `
     document.head.appendChild(style); tags.push(style)
@@ -260,6 +272,13 @@ function DawnField() {
   const stateRef = useRef({ mx: 0, my: 0, progress: 0 })
 
   useEffect(() => {
+    // Defer heavy Three.js init until browser is idle — keeps LCP fast
+    const ric = window.requestIdleCallback || ((cb) => setTimeout(cb, 200))
+    let cancelled = false
+    const cleanup = { fn: null }
+
+    ric(() => {
+      if (cancelled) return
     const mount = mountRef.current; if (!mount) return
     const w = () => window.innerWidth, h = () => window.innerHeight
     const dpr = Math.min(window.devicePixelRatio || 1, 2)
@@ -274,29 +293,7 @@ function DawnField() {
     camera.position.set(0, 0, 20)
 
     // Warm glow sprites (subtle, no hard edges — just atmosphere)
-    function makeGlow(size, color, opacity) {
-      const canvas = document.createElement("canvas")
-      canvas.width = 256; canvas.height = 256
-      const ctx = canvas.getContext("2d")
-      const g = ctx.createRadialGradient(128, 128, 0, 128, 128, 128)
-      g.addColorStop(0, `rgba(${color},${opacity})`)
-      g.addColorStop(0.5, `rgba(${color},${opacity * 0.35})`)
-      g.addColorStop(1, `rgba(${color},0)`)
-      ctx.fillStyle = g; ctx.fillRect(0, 0, 256, 256)
-      const tex = new THREE.CanvasTexture(canvas)
-      const mat = new THREE.SpriteMaterial({ map: tex, blending: THREE.NormalBlending, transparent: true, depthWrite: false })
-      const sp = new THREE.Sprite(mat); sp.scale.set(size, size, 1); return sp
-    }
-
-    // Two soft warm glows that drift slowly
-    const glow1 = makeGlow(22, "216,154,58", 0.22)
-    glow1.position.set(10, 5, -3)
-    scene.add(glow1)
-    const glow2 = makeGlow(18, "194,86,103", 0.14)
-    glow2.position.set(-8, -4, -5)
-    scene.add(glow2)
-
-    // Sunbeam planes — wider, more visible, slow breathing
+    // Sunbeam planes — two beams, warm breathing atmosphere
     function makeBeam(angle, color, opacity, sx, sy) {
       const canvas = document.createElement("canvas")
       canvas.width = 256; canvas.height = 768
@@ -312,16 +309,14 @@ function DawnField() {
       const m = new THREE.Mesh(geo, mat); m.rotation.z = angle; return m
     }
     const beams = [
-      { b: makeBeam(0.28, "216,154,58", 0.14, 12, 40), x: 7, y: 3, z: -2, base: 0.28 },
-      { b: makeBeam(-0.18, "201,122,46", 0.10, 10, 34), x: 3, y: 0, z: -4, base: -0.18 },
-      { b: makeBeam(0.45, "194,86,103", 0.08, 8, 30), x: -5, y: -2, z: -6, base: 0.45 },
-      { b: makeBeam(-0.35, "216,154,58", 0.07, 7, 28), x: 12, y: 5, z: -5, base: -0.35 },
+      { b: makeBeam(0.28, "216,154,58", 0.12, 12, 40), x: 7, y: 3, z: -2, base: 0.28 },
+      { b: makeBeam(0.45, "194,86,103", 0.07, 8, 30), x: -5, y: -2, z: -6, base: 0.45 },
     ]
     beams.forEach(b => { b.b.position.set(b.x, b.y, b.z); scene.add(b.b) })
 
-    // Dust motes — 1600, with fluid wave motion
+    // Dust motes — 600 (performance optimised), fluid wave motion
     const dustGeo = new THREE.BufferGeometry()
-    const N = 1600
+    const N = 600
     const pos = new Float32Array(N * 3)
     const col = new Float32Array(N * 3)
     const sizes = new Float32Array(N)
@@ -390,10 +385,13 @@ function DawnField() {
     }
     window.addEventListener("resize", onResize)
 
-    const clock = new THREE.Clock()
+    const clock = { start: performance.now(), getElapsedTime() { return (performance.now() - this.start) / 1000 } }
     let running = true
+    // Pause render loop when tab is hidden — saves GPU and improves Lighthouse
+    const onVisibility = () => { running = document.visibilityState !== "hidden" }
+    document.addEventListener("visibilitychange", onVisibility)
     const tick = () => {
-      if (!running) return
+      if (!running) { requestAnimationFrame(tick); return }
       const t = clock.getElapsedTime(); const s = stateRef.current
       dustMat.uniforms.uTime.value = t
 
@@ -402,12 +400,6 @@ function DawnField() {
         b.b.rotation.z = b.base + Math.sin(t * 0.06 + i * 1.5) * 0.06
         b.b.material.opacity = 0.6 + Math.sin(t * 0.15 + i * 2.0) * 0.15
       })
-
-      // Glows drift with mouse parallax
-      glow1.position.x = 10 + s.mx * 2.0 + Math.sin(t * 0.12) * 1.5
-      glow1.position.y = 5 - s.my * 2.0 + Math.cos(t * 0.1) * 1.0
-      glow2.position.x = -8 + s.mx * 1.2 + Math.cos(t * 0.1) * 1.2
-      glow2.position.y = -4 - s.my * 1.2 + Math.sin(t * 0.14) * 0.8
 
       // Camera: subtle mouse parallax + gentle scroll drift
       camera.position.x += (s.mx * 0.6 - camera.position.x) * 0.04
@@ -419,17 +411,24 @@ function DawnField() {
     }
     tick()
 
+      cleanup.fn = () => {
+        running = false
+        document.removeEventListener("visibilitychange", onVisibility)
+        window.removeEventListener("mousemove", onMove)
+        window.removeEventListener("scroll", onScroll)
+        window.removeEventListener("resize", onResize)
+        if (mount.contains(renderer.domElement)) mount.removeChild(renderer.domElement)
+        renderer.dispose(); dustGeo.dispose(); dustMat.dispose()
+      }
+    }) // end requestIdleCallback
+
     return () => {
-      running = false
-      window.removeEventListener("mousemove", onMove)
-      window.removeEventListener("scroll", onScroll)
-      window.removeEventListener("resize", onResize)
-      mount.removeChild(renderer.domElement)
-      renderer.dispose(); dustGeo.dispose(); dustMat.dispose()
+      cancelled = true
+      if (cleanup.fn) cleanup.fn()
     }
   }, [])
 
-  return <div ref={mountRef} style={{ position: "fixed", inset: 0, zIndex: 2, pointerEvents: "none" }} />
+  return <div ref={mountRef} aria-hidden="true" style={{ position: "fixed", inset: 0, zIndex: 2, pointerEvents: "none" }} />
 }
 
 // ============================================================================
@@ -460,9 +459,12 @@ function HUD({ active, audio }) {
         </div>
       </div>
 
-      <div style={{ pointerEvents: "auto", display: "flex", gap: 28, alignItems: "center" }}>
+      <nav role="navigation" aria-label="Chapter navigation"
+        style={{ pointerEvents: "auto", display: "flex", gap: 28, alignItems: "center" }}>
         {CHAPTERS.map((c, i) => (
-          <a key={c.id} href={`#${c.id}`} data-mag style={{
+          <a key={c.id} href={`#${c.id}`} data-mag
+            aria-current={active === i ? "true" : undefined}
+            style={{
             fontFamily: F.mono, fontSize: 9.5, letterSpacing: "0.28em",
             textTransform: "uppercase",
             color: active === i ? C.marigold : "rgba(251,245,230,0.65)",
@@ -473,9 +475,11 @@ function HUD({ active, audio }) {
             {c.name}
           </a>
         ))}
-      </div>
+      </nav>
 
-      <button onClick={audio.toggle} data-mag style={{
+      <button onClick={audio.toggle} data-mag
+        aria-label={audio.playing ? "Mute ambient audio" : "Unmute ambient audio"}
+        style={{
         pointerEvents: "auto", display: "flex", alignItems: "center", gap: 10,
         fontFamily: F.mono, fontWeight: 600, fontSize: 9.5,
         letterSpacing: "0.3em", textTransform: "uppercase",
@@ -1336,7 +1340,7 @@ function Energy() {
                   boxShadow: "0 16px 40px rgba(26,17,8,0.14)"
                 }}>
                   <img src={`https://i.ytimg.com/vi/${r.id}/maxresdefault.jpg`} alt={r.title}
-                       style={{ filter: "saturate(0.92)" }} />
+                       loading="lazy" style={{ filter: "saturate(0.92)" }} />
                   <div style={{
                     position: "absolute", inset: 0,
                     background: "linear-gradient(180deg, rgba(26,17,8,0.05) 50%, rgba(26,17,8,0.65) 100%)"
@@ -1998,18 +2002,20 @@ export default function App() {
 
   return (
     <>
-      <div className="moa-paper" />
+      <div className="moa-paper" aria-hidden="true" />
       <DawnField />
-      <div className="moa-grain" />
+      <div className="moa-grain" aria-hidden="true" />
       <HUD active={active} audio={audio} />
       <AudioPrompt armed={audio.armed} />
-      <Hero />
-      <ThePull />
-      <Ecosystem />
-      <Energy />
-      <Platform />
-      <Record />
-      <Decision />
+      <main>
+        <Hero />
+        <ThePull />
+        <Ecosystem />
+        <Energy />
+        <Platform />
+        <Record />
+        <Decision />
+      </main>
     </>
   )
 }
